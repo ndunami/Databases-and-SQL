@@ -1,0 +1,283 @@
+----QUERIES AND VIEWS and VIEW BASED QUERIES BELOW
+--QUERIES
+-- run each query individually. you may have to press 'q' after each one
+-- press 'ctrl c' if it runs endlessly
+-- query lists the Faculty and its courses
+
+SELECT 
+    F.faculty_name AS "Faculty Name",
+    C.course_name AS "Course Name",
+    COUNT(CM.module_id) AS "Number of Modules"
+FROM 
+    FACULTIES F
+JOIN  
+    FACULTY_COURSES FC ON F.faculty_id = FC.faculty_id
+JOIN  
+    COURSES C ON FC.course_id = C.course_id
+LEFT JOIN 
+    COURSE_MODULES CM ON C.course_id = CM.course_id
+GROUP BY 
+    F.faculty_name, C.course_name
+ORDER BY 
+    COUNT(CM.module_id) DESC, F.faculty_name, C.course_name;
+
+
+--QUERIE 2
+--This query lists staff members along with their emergency contacts, showing staff with no contacts(if none added) as well.
+
+SELECT 
+    S.staff_first_name || ' ' || S.staff_last_name AS "Staff Name",
+    EC.contact_first_name || ' ' || EC.contact_last_name AS "Emergency Contact",
+    EC.contact_email AS "Emergency Contact Email",
+    EC.contact_number AS "Emergency Contact Number"
+FROM 
+    STAFF S
+LEFT JOIN 
+    STAFF_EMERGENCY_CONTACTS SEC ON S.staff_id = SEC.staff_id
+LEFT JOIN 
+    EMERGENCY_CONTACTS EC ON SEC.contact_id = EC.contact_id
+ORDER BY 
+    S.staff_last_name, S.staff_first_name;
+
+--QUERIE 3
+--List of teachers and their taught sessions, alongside their emails, branch and faculty.
+
+SELECT 
+    S.staff_first_name || ' ' || S.staff_last_name AS "Teacher Name",
+    S.staff_email AS "Email",
+    COUNT(SF.session_ID) AS "Sessions Taught",
+    B.branch_name AS "Branch Name",
+    F.faculty_name AS "Faculty Name"
+FROM 
+    STAFF S
+LEFT JOIN 
+    STAFF_SESSIONS SF ON S.staff_id = SF.staff_id
+LEFT JOIN 
+    BRANCHES B ON S.branch_id = B.branch_id
+LEFT JOIN 
+    FACULTIES F ON S.faculty_id = F.faculty_id
+GROUP BY 
+    S.staff_first_name, S.staff_last_name, S.staff_email, B.branch_name, F.faculty_name
+ORDER BY 
+    "Sessions Taught" DESC, "Teacher Name", "Branch Name", "Faculty Name";
+
+--QUERIE 4
+--Student Attendance Summary, this query provides a summary of attendance for each student, showing the total sessions and attended sessions.
+
+SELECT 
+    S.stdt_first_name || ' ' || S.stdt_last_name AS "Student Name",
+    COUNT(DISTINCT TS.session_id) AS "Total Sessions",
+    SUM(CASE WHEN SA.stdt_attendance = TRUE THEN 1 ELSE 0 END) AS "Attended Sessions",
+    B.branch_name AS "Branch Name"
+FROM 
+    STUDENTS S
+LEFT JOIN 
+    STUDENT_SESSIONS ST ON S.stdt_id = ST.stdt_id
+LEFT JOIN 
+    TEACHING_SESSIONS TS ON ST.session_ID = TS.session_id
+LEFT JOIN 
+    STUDENT_ATTENDANCE SA ON ST.session_ID = SA.session_id AND S.stdt_id = SA.stdt_id
+LEFT JOIN 
+    BRANCHES B ON S.branch_id = B.branch_id
+GROUP BY 
+    S.stdt_first_name, S.stdt_last_name, B.branch_name
+ORDER BY 
+    "Total Sessions" DESC, "Attended Sessions" DESC, "Branch Name" ASC, "Student Name" ASC;
+
+--QUERIE 5
+-- Students with missed sessions showing their assigned emergency contact if exists
+
+SELECT 
+    S.stdt_first_name || ' ' || S.stdt_last_name AS "Student Name",
+    S.stdt_email AS "Student Email",
+    S.stdt_number AS "Student Number",
+    EC.contact_first_name || ' ' || EC.contact_last_name AS "Emergency Contact",
+    EC.contact_email AS "Emergency Contact Email",
+    EC.contact_number AS "Emergency Contact Number",
+    COUNT(SA.session_id) AS "Missed Sessions"
+FROM 
+    STUDENTS S
+LEFT JOIN 
+    STUDENT_SESSIONS ST ON S.stdt_id = ST.stdt_id
+LEFT JOIN 
+    STUDENT_ATTENDANCE SA ON ST.session_ID = SA.session_id AND SA.stdt_attendance = FALSE
+LEFT JOIN 
+    STDT_EMERGENCY_CONTACTS SEC ON S.stdt_id = SEC.stdt_id
+LEFT JOIN 
+    EMERGENCY_CONTACTS EC ON SEC.contact_id = EC.contact_id
+GROUP BY 
+    S.stdt_first_name, S.stdt_last_name, S.stdt_email, S.stdt_number, EC.contact_first_name, EC.contact_last_name, EC.contact_email, EC.contact_number
+HAVING 
+    COUNT(SA.session_id) > 0
+ORDER BY 
+    "Missed Sessions" DESC;
+
+------
+
+--OUR 5 VIEWS
+CREATE VIEW faculty_courses_view AS
+SELECT 
+    F.faculty_name AS "Faculty Name",
+    C.course_name AS "Course Name",
+    COUNT(CM.module_id) AS "Number of Modules"
+FROM 
+    FACULTIES F
+JOIN  
+    FACULTY_COURSES FC ON F.faculty_id = FC.faculty_id
+JOIN  
+    COURSES C ON FC.course_id = C.course_id
+LEFT JOIN 
+    COURSE_MODULES CM ON C.course_id = CM.course_id
+GROUP BY 
+    F.faculty_name, C.course_name
+ORDER BY 
+    COUNT(CM.module_id) DESC, F.faculty_name, C.course_name;
+
+
+
+-- This query gets the total number of modules per faculty from the faculty_courses_view. It helps identify which faculties have 
+--the most modules associated with their courses, this will be useful for resource allocation and their curriculum planning.
+
+--------VIEW 2
+
+
+CREATE VIEW staff_emergency_contacts_view AS
+SELECT 
+    S.staff_first_name || ' ' || S.staff_last_name AS "Staff Name",
+    EC.contact_first_name || ' ' || EC.contact_last_name AS "Emergency Contact",
+    EC.contact_email AS "Emergency Contact Email",
+    EC.contact_number AS "Emergency Contact Number"
+FROM 
+    STAFF S
+LEFT JOIN 
+    STAFF_EMERGENCY_CONTACTS SEC ON S.staff_id = SEC.staff_id
+LEFT JOIN 
+    EMERGENCY_CONTACTS EC ON SEC.contact_id = EC.contact_id
+ORDER BY 
+    S.staff_last_name, S.staff_first_name;
+
+
+
+
+--This query identifies staff members who do not have emergency contacts.
+-----VIEW3
+
+
+
+CREATE VIEW teachers_sessions_view AS
+SELECT 
+    S.staff_first_name || ' ' || S.staff_last_name AS "Teacher Name",
+    S.staff_email AS "Email",
+    COUNT(SF.session_ID) AS "Sessions Taught",
+    B.branch_name AS "Branch Name",
+    F.faculty_name AS "Faculty Name"
+FROM 
+    STAFF S
+LEFT JOIN 
+    STAFF_SESSIONS SF ON S.staff_id = SF.staff_id
+LEFT JOIN 
+    BRANCHES B ON S.branch_id = B.branch_id
+LEFT JOIN 
+    FACULTIES F ON S.faculty_id = F.faculty_id
+GROUP BY 
+    S.staff_first_name, S.staff_last_name, S.staff_email, B.branch_name, F.faculty_name
+ORDER BY 
+    "Sessions Taught" DESC, "Teacher Name", "Branch Name", "Faculty Name";
+
+
+
+------VIEW4
+
+
+
+
+CREATE VIEW student_attendance_summary_view AS
+SELECT 
+    S.stdt_first_name || ' ' || S.stdt_last_name AS "Student Name",
+    COUNT(DISTINCT TS.session_id) AS "Total Sessions",
+    SUM(CASE WHEN SA.stdt_attendance = TRUE THEN 1 ELSE 0 END) AS "Attended Sessions",
+    B.branch_name AS "Branch Name"
+FROM 
+    STUDENTS S
+LEFT JOIN 
+    STUDENT_SESSIONS ST ON S.stdt_id = ST.stdt_id
+LEFT JOIN 
+    TEACHING_SESSIONS TS ON ST.session_ID = TS.session_id
+LEFT JOIN 
+    STUDENT_ATTENDANCE SA ON ST.session_ID = SA.session_id AND S.stdt_id = SA.stdt_id
+LEFT JOIN 
+    BRANCHES B ON S.branch_id = B.branch_id
+GROUP BY 
+    S.stdt_first_name, S.stdt_last_name, B.branch_name
+ORDER BY 
+    "Total Sessions" DESC, "Attended Sessions" DESC, "Branch Name" ASC, "Student Name" ASC;
+
+
+
+------VIEW no 5
+
+
+
+
+CREATE VIEW missed_sessions_view AS
+SELECT 
+    S.stdt_first_name || ' ' || S.stdt_last_name AS "Student Name",
+    S.stdt_email AS "Student Email",
+    S.stdt_number AS "Student Number",
+    EC.contact_first_name || ' ' || EC.contact_last_name AS "Emergency Contact",
+    EC.contact_email AS "Emergency Contact Email",
+    EC.contact_number AS "Emergency Contact Number",
+    COUNT(SA.session_id) AS "Missed Sessions"
+FROM 
+    STUDENTS S
+LEFT JOIN 
+    STUDENT_SESSIONS ST ON S.stdt_id = ST.stdt_id
+LEFT JOIN 
+    STUDENT_ATTENDANCE SA ON ST.session_ID = SA.session_id AND SA.stdt_attendance = FALSE
+LEFT JOIN 
+    STDT_EMERGENCY_CONTACTS SEC ON S.stdt_id = SEC.stdt_id
+LEFT JOIN 
+    EMERGENCY_CONTACTS EC ON SEC.contact_id = EC.contact_id
+GROUP BY 
+    S.stdt_first_name, S.stdt_last_name, S.stdt_email, S.stdt_number, EC.contact_first_name, EC.contact_last_name, EC.contact_email, EC.contact_number
+HAVING 
+    COUNT(SA.session_id) > 0
+ORDER BY 
+    "Missed Sessions" DESC;
+---------
+
+--VIEW BASED QUERIES
+
+--Faculty with Most Modules
+SELECT 
+    "Faculty Name",
+    SUM("Number of Modules") AS "Total Modules"
+FROM 
+    faculty_courses_view
+GROUP BY 
+    "Faculty Name"
+ORDER BY 
+    "Total Modules" DESC;
+
+
+--Query to List Staff Without Emergency Contacts
+SELECT "Staff Name"
+FROM staff_emergency_contacts_view
+WHERE "Emergency Contact" IS NULL;
+
+--Query to Find Teachers with Most Sessions:
+SELECT "Teacher Name", "Email", "Sessions Taught"
+FROM teachers_sessions_view
+ORDER BY "Sessions Taught" DESC
+LIMIT 10;
+
+--Query to Overview of Student Attendance:
+SELECT "Student Name", "Total Sessions", "Attended Sessions"
+FROM student_attendance_summary_view
+ORDER BY "Attended Sessions" DESC;
+
+--Query for Students with Most Missed Sessions:
+SELECT "Student Name", "Missed Sessions"
+FROM missed_sessions_view
+ORDER BY "Missed Sessions" DESC
+LIMIT 10;
